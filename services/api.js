@@ -246,6 +246,18 @@ const api = {
     // ---- Settings — ASSUMED ----
     async updateSettings(payload) {
         return request("/settings", { method: "PATCH", body: payload });
+    },
+
+    // ---- VS Code extension login handoff — ASSUMED mount path ----
+    // Calls the backend's creatExtensioncode controller. It's
+    // verifyJwt-protected, so this relies on request() already sending
+    // the session cookie (credentials:'include') and/or bearer token.
+    // ⚠️ Confirm the real mount prefix against your server.js — this
+    // assumes the extension router is mounted at /api/extension, matching
+    // the /api/auth convention used elsewhere in this file. If it's
+    // mounted differently (e.g. just /extension), update this one path.
+    async createExtensionCode() {
+        return request("/api/extension/create-token", { method: "POST" });
     }
 };
 
