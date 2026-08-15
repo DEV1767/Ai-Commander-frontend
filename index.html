@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Commander</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ============================================================
+     AUTH SCREEN (this is the first thing the user sees — the
+     extension opens this page directly, no landing page)
+     ============================================================ -->
+<section class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="brand center">
+      <span class="brand-mark">◆</span>
+      <span class="brand-name">AI COMMANDER</span>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-auth="login">Log in</button>
+      <button class="auth-tab" data-auth="signup">Sign up</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <form class="auth-form" id="loginForm">
+      <div class="connect-field">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com" required />
+      </div>
+      <div class="connect-field">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" required />
+      </div>
+      <button type="submit" class="btn-primary full" id="btnLogin">Log in</button>
+      <div class="auth-error" id="loginError"></div>
+    </form>
+
+    <!-- SIGNUP FORM -->
+    <form class="auth-form hidden" id="signupForm">
+      <div class="connect-field">
+        <label for="signupName">Name</label>
+        <input type="text" id="signupName" placeholder="Your name" required />
+      </div>
+      <div class="connect-field">
+        <label for="signupEmail">Email</label>
+        <input type="email" id="signupEmail" placeholder="you@example.com" required />
+      </div>
+      <div class="connect-field">
+        <label for="signupPassword">Password</label>
+        <input type="password" id="signupPassword" placeholder="••••••••" required />
+      </div>
+      <button type="submit" class="btn-primary full" id="btnSignup">Create account</button>
+      <div class="auth-error" id="signupError"></div>
+    </form>
+
+    <details class="auth-advanced">
+      <summary>Advanced — backend URL</summary>
+      <div class="connect-field">
+        <label for="apiBaseInput">API base URL</label>
+        <input type="text" id="apiBaseInput" class="mono" placeholder="https://ai-commander-vscode-backend.vercel.app" />
+      </div>
+      <button type="button" class="btn-ghost" id="btnSaveApiBase" style="margin-top:8px;">Save</button>
+    </details>
+  </div>
+</section>
+
+<!-- ============================================================
+     APP SHELL — shown right after login/signup.
+     Just the output feed: VS Code (active) + Vercel (for later).
+     ============================================================ -->
+<div id="appShell" class="app-shell-hidden">
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">◆</span>
+    <span class="brand-name">AI COMMANDER</span>
+  </div>
+  <div class="topbar-right">
+    <div class="conn-status" id="connStatus">
+      <span class="status-dot" id="connDot"></span>
+      <span id="connText">Not connected</span>
+    </div>
+    <div class="user-chip" id="userChip">
+      <span class="user-avatar" id="userAvatar">–</span>
+      <span id="userName">—</span>
+    </div>
+    <button class="btn-ghost" id="btnLogout">Log out</button>
+  </div>
+</header>
+
+<!-- ============ CONNECTION BAR ============ -->
+<section class="connect-bar">
+  <div class="connect-field">
+    <label for="vscodeUrl">VS Code output endpoint</label>
+    <input type="text" id="vscodeUrl" class="mono" value="" />
+  </div>
+  <div class="connect-field">
+    <label for="vercelUrl">Vercel output endpoint</label>
+    <input type="text" id="vercelUrl" class="mono" value="" />
+  </div>
+  <div class="connect-field small">
+    <label for="pollInterval">Poll every</label>
+    <select id="pollInterval">
+      <option value="2000">2s</option>
+      <option value="3000" selected>3s</option>
+      <option value="5000">5s</option>
+      <option value="10000">10s</option>
+    </select>
+  </div>
+  <button class="btn-primary" id="btnConnect">Start listening</button>
+</section>
+
+<!-- ============ SOURCE TABS ============ -->
+<nav class="tabs">
+  <button class="tab active" data-source="vscode">
+    VS Code
+    <span class="tab-count" id="countVscode">0</span>
+  </button>
+  <button class="tab" data-source="vercel">
+    Vercel
+    <span class="tab-count" id="countVercel">0</span>
+  </button>
+</nav>
+
+<main class="main">
+
+  <section class="source-panel active" id="panel-vscode">
+    <div class="panel-toolbar">
+      <span class="panel-hint">Live AI Commander output from your VS Code extension</span>
+      <div class="panel-actions">
+        <label class="checkbox-inline"><input type="checkbox" class="hideResolved" data-source="vscode" /> Hide resolved</label>
+        <button class="btn-ghost" data-clear="vscode">Clear</button>
+      </div>
+    </div>
+    <div class="feed" id="feed-vscode">
+      <div class="empty-state">Waiting for output from <span class="mono" id="emptyUrlVscode">—</span>…</div>
+    </div>
+  </section>
+
+  <section class="source-panel" id="panel-vercel">
+    <div class="panel-toolbar">
+      <span class="panel-hint">Live errors from your production deployment</span>
+      <div class="panel-actions">
+        <label class="checkbox-inline"><input type="checkbox" class="hideResolved" data-source="vercel" /> Hide resolved</label>
+        <button class="btn-ghost" data-clear="vercel">Clear</button>
+      </div>
+    </div>
+    <div class="feed" id="feed-vercel">
+      <div class="empty-state">Waiting for errors from <span class="mono" id="emptyUrlVercel">—</span>…</div>
+    </div>
+  </section>
+
+</main>
+
+</div><!-- /appShell -->
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script src="services/api.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
