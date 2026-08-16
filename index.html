@@ -11,8 +11,8 @@
 <body>
 
 <!-- ============================================================
-     AUTH SCREEN (this is the first thing the user sees — the
-     extension opens this page directly, no landing page)
+     AUTH SCREEN — first thing the user sees; the extension opens
+     this page directly, no separate landing page.
      ============================================================ -->
 <section class="auth-screen" id="authScreen">
   <div class="auth-card">
@@ -26,7 +26,6 @@
       <button class="auth-tab" data-auth="signup">Sign up</button>
     </div>
 
-    <!-- LOGIN FORM -->
     <form class="auth-form" id="loginForm">
       <div class="connect-field">
         <label for="loginEmail">Email</label>
@@ -40,7 +39,6 @@
       <div class="auth-error" id="loginError"></div>
     </form>
 
-    <!-- SIGNUP FORM -->
     <form class="auth-form hidden" id="signupForm">
       <div class="connect-field">
         <label for="signupName">Name</label>
@@ -71,7 +69,6 @@
 
 <!-- ============================================================
      APP SHELL — shown right after login/signup.
-     Just the output feed: VS Code (active) + Vercel (for later).
      ============================================================ -->
 <div id="appShell" class="app-shell-hidden">
 
@@ -93,16 +90,8 @@
   </div>
 </header>
 
-<!-- ============ CONNECTION BAR ============ -->
+<!-- ============ POLL CONTROL ============ -->
 <section class="connect-bar">
-  <div class="connect-field">
-    <label for="vscodeUrl">VS Code output endpoint</label>
-    <input type="text" id="vscodeUrl" class="mono" value="" />
-  </div>
-  <div class="connect-field">
-    <label for="vercelUrl">Vercel output endpoint</label>
-    <input type="text" id="vercelUrl" class="mono" value="" />
-  </div>
   <div class="connect-field small">
     <label for="pollInterval">Poll every</label>
     <select id="pollInterval">
@@ -138,7 +127,7 @@
       </div>
     </div>
     <div class="feed" id="feed-vscode">
-      <div class="empty-state">Waiting for output from <span class="mono" id="emptyUrlVscode">—</span>…</div>
+      <div class="empty-state">Waiting for output from your VS Code extension…</div>
     </div>
   </section>
 
@@ -151,7 +140,7 @@
       </div>
     </div>
     <div class="feed" id="feed-vercel">
-      <div class="empty-state">Waiting for errors from <span class="mono" id="emptyUrlVercel">—</span>…</div>
+      <div class="empty-state">Waiting for errors from Vercel…</div>
     </div>
   </section>
 
