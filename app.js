@@ -115,6 +115,13 @@ function wireAuth() {
         if (val) { config.setBaseUrl(val); showToast("Backend URL saved."); }
     });
 
+    // ============================================================
+    // LOGIN — this is the handler that matters for the VS Code flow.
+    // If this page was opened by the extension (?source=vscode in
+    // the URL), after a successful login we fetch a one-time code
+    // from the backend and redirect the browser to a vscode:// URI
+    // instead of showing the normal web dashboard.
+    // ============================================================
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const errEl = document.getElementById("loginError");
@@ -126,6 +133,19 @@ function wireAuth() {
             const email = document.getElementById("loginEmail").value.trim();
             const password = document.getElementById("loginPassword").value;
             await api.login(email, password);
+
+            const params = new URLSearchParams(window.location.search);
+            if (params.get("source") === "vscode") {
+                // Opened by the VS Code extension — get a short-lived code
+                // and hand off via a custom URI redirect instead of
+                // showing the normal web dashboard.
+                btn.textContent = "Connecting to VS Code…";
+                const { code } = await api.createExtensionCode();
+                showToast("Login successful. Returning to VS Code…");
+                window.location.href = `vscode://ai-commander.ai-commander/auth?code=${encodeURIComponent(code)}`;
+                return;
+            }
+
             showToast("Welcome back.");
             await showApp();
         } catch (err) {
