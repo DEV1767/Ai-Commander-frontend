@@ -10,10 +10,10 @@ function initAICommanderApp() {
 const { api, auth, config, ApiError } = window.AICommander;
 
 /* ==========================================================================
-   AI COMMANDER — app shell (simplified)
+   AI COMMANDER — app shell
 
    Flow: extension opens this page -> user logs in / signs up -> app shell
-   shows the live output feed (VS Code tab active, Vercel tab for later).
+   polls the backend for saved VS Code results and renders them live.
    ========================================================================== */
 
 const state = {
@@ -87,7 +87,7 @@ async function showApp() {
     const user = await api.getCurrentUser();
     applyUserToUI(user);
 
-       document.getElementById("vscodeUrl").value = `${config.getBaseUrl()}/api/commander/errors/vscode`;
+    startPolling();
 }
 
 function applyUserToUI(user) {
@@ -117,13 +117,9 @@ function wireAuth() {
         if (val) { config.setBaseUrl(val); showToast("Backend URL saved."); }
     });
 
-    // ============================================================
-    // LOGIN — this is the handler that matters for the VS Code flow.
-    // If this page was opened by the extension (?source=vscode in
-    // the URL), after a successful login we fetch a one-time code
-    // from the backend and redirect the browser to a vscode:// URI
-    // instead of showing the normal web dashboard.
-    // ============================================================
+    // LOGIN — if opened by the VS Code extension (?source=vscode), redirect
+    // back to it via a vscode:// URI after login instead of showing the
+    // dashboard.
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const errEl = document.getElementById("loginError");
@@ -138,9 +134,6 @@ function wireAuth() {
 
             const params = new URLSearchParams(window.location.search);
             if (params.get("source") === "vscode") {
-                // Opened by the VS Code extension — get a short-lived code
-                // and hand off via a custom URI redirect instead of
-                // showing the normal web dashboard.
                 btn.textContent = "Connecting to VS Code…";
                 const { code } = await api.createExtensionCode();
                 showToast("Login successful. Returning to VS Code…");
@@ -241,9 +234,8 @@ function renderFeed(source) {
     if (state.hideResolved[source]) list = list.filter(i => !i.resolved);
 
     if (!list.length) {
-        const url = document.getElementById(source + "Url").value || "—";
-        const label = source === "vscode" ? "output" : "errors";
-        el.innerHTML = `<div class="empty-state">Waiting for ${label} from <span class="mono">${escapeHtml(url)}</span>…</div>`;
+        const label = source === "vscode" ? "output from your VS Code extension" : "errors from Vercel";
+        el.innerHTML = `<div class="empty-state">Waiting for ${label}…</div>`;
         return;
     }
     el.innerHTML = list.map(cardHTML).join("");
@@ -271,7 +263,7 @@ function ingest(source, rawList) {
         state.seenKeys[source].add(key);
 
         state.incidents[source].unshift({
-            id: source + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+            id: raw._id || (source + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7)),
             error: raw.error,
             description: raw.description,
             risk: raw.risk,
@@ -280,7 +272,7 @@ function ingest(source, rawList) {
             tech_stack: raw.tech_stack,
             explanation: raw.explanation,
             prevention: raw.prevention,
-            receivedAt: Date.now(),
+            receivedAt: raw.createdAt ? new Date(raw.createdAt).getTime() : Date.now(),
             resolved: false,
             open: false
         });
@@ -288,39 +280,25 @@ function ingest(source, rawList) {
     });
 
     if (addedCount > 0) {
+        state.incidents[source].sort((a, b) => b.receivedAt - a.receivedAt);
         renderFeed(source);
         renderCounts();
         showToast(`${addedCount} new ${source === "vscode" ? "VS Code" : "Vercel"} result${addedCount > 1 ? "s" : ""} received`);
     }
 }
 
+// Polls the backend (through api.getErrors, which attaches the auth
+// token correctly) instead of hitting a raw URL directly.
 async function pollOnce() {
-    const vscodeUrl = document.getElementById("vscodeUrl").value.trim();
-    const vercelUrl = document.getElementById("vercelUrl").value.trim();
     let anyOk = false;
 
-    await Promise.all([
-        (async () => {
-            if (!vscodeUrl) return;
-            try {
-                const res = await fetch(vscodeUrl, { credentials: "include" });
-                if (!res.ok) throw new Error("bad status");
-                const data = await res.json();
-                ingest("vscode", normalizeIncoming(data));
-                anyOk = true;
-            } catch { /* endpoint not reachable yet — stay quiet, keep retrying */ }
-        })(),
-        (async () => {
-            if (!vercelUrl) return;
-            try {
-                const res = await fetch(vercelUrl, { credentials: "include" });
-                if (!res.ok) throw new Error("bad status");
-                const data = await res.json();
-                ingest("vercel", normalizeIncoming(data));
-                anyOk = true;
-            } catch { /* endpoint not reachable yet — stay quiet, keep retrying */ }
-        })()
-    ]);
+    try {
+        const data = await api.getErrors("vscode");
+        ingest("vscode", normalizeIncoming(data));
+        anyOk = true;
+    } catch {
+        // vscode feed unreachable this cycle — stay quiet, retry next poll
+    }
 
     updateConnectionStatus(anyOk);
 }
@@ -347,8 +325,6 @@ function startPolling() {
     state.polling = true;
     document.getElementById("btnConnect").textContent = "Stop listening";
     document.getElementById("btnConnect").classList.add("stop");
-    document.getElementById("emptyUrlVscode").textContent = document.getElementById("vscodeUrl").value || "—";
-    document.getElementById("emptyUrlVercel").textContent = document.getElementById("vercelUrl").value || "—";
 
     const interval = parseInt(document.getElementById("pollInterval").value, 10);
     pollOnce();
@@ -455,8 +431,6 @@ async function init() {
     renderFeed("vercel");
     renderCounts();
 
-    // Cookie-based session (backend uses cookieParser + JWT). Confirm
-    // against the backend on load rather than trusting a local flag.
     if (auth.isAuthenticated()) {
         try {
             const user = await api.getCurrentUser();
