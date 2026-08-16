@@ -9,6 +9,13 @@ function initAICommanderApp() {
 
 const { api, auth, config, ApiError } = window.AICommander;
 
+/* ==========================================================================
+   AI COMMANDER — app shell (simplified)
+
+   Flow: extension opens this page -> user logs in / signs up -> app shell
+   shows the live output feed (VS Code tab active, Vercel tab for later).
+   ========================================================================== */
+
 const state = {
     incidents: { vscode: [], vercel: [] },
     seenKeys: { vscode: new Set(), vercel: new Set() },
@@ -16,6 +23,10 @@ const state = {
     timer: null,
     hideResolved: { vscode: false, vercel: false }
 };
+
+/* ---------------------------------------------------------------------
+   Helpers
+   --------------------------------------------------------------------- */
 
 function escapeHtml(str) {
     return String(str ?? "").replace(/[&<>"']/g, s => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[s]));
@@ -59,6 +70,10 @@ function friendlyError(err) {
     return "Something went wrong.";
 }
 
+/* ---------------------------------------------------------------------
+   Screen switching: auth <-> app
+   --------------------------------------------------------------------- */
+
 function showAuth(tab = "login") {
     document.getElementById("authScreen").classList.remove("hidden");
     document.getElementById("appShell").classList.add("app-shell-hidden");
@@ -79,6 +94,10 @@ function applyUserToUI(user) {
     document.getElementById("userAvatar").textContent = initial || "?";
 }
 
+/* ---------------------------------------------------------------------
+   Auth: login / signup
+   --------------------------------------------------------------------- */
+
 function setAuthTab(tab) {
     document.querySelectorAll(".auth-tab").forEach(t => t.classList.toggle("active", t.dataset.auth === tab));
     document.getElementById("loginForm").classList.toggle("hidden", tab !== "login");
@@ -96,6 +115,13 @@ function wireAuth() {
         if (val) { config.setBaseUrl(val); showToast("Backend URL saved."); }
     });
 
+    // ============================================================
+    // LOGIN — this is the handler that matters for the VS Code flow.
+    // If this page was opened by the extension (?source=vscode in
+    // the URL), after a successful login we fetch a one-time code
+    // from the backend and redirect the browser to a vscode:// URI
+    // instead of showing the normal web dashboard.
+    // ============================================================
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const errEl = document.getElementById("loginError");
@@ -110,6 +136,9 @@ function wireAuth() {
 
             const params = new URLSearchParams(window.location.search);
             if (params.get("source") === "vscode") {
+                // Opened by the VS Code extension — get a short-lived code
+                // and hand off via a custom URI redirect instead of
+                // showing the normal web dashboard.
                 btn.textContent = "Connecting to VS Code…";
                 const { code } = await api.createExtensionCode();
                 showToast("Login successful. Returning to VS Code…");
@@ -165,6 +194,10 @@ window.addEventListener("auth:unauthorized", () => {
     showAuth("login");
 });
 
+/* ---------------------------------------------------------------------
+   Rendering the output feed
+   --------------------------------------------------------------------- */
+
 function cardHTML(item) {
     const rc = riskClass(item.risk);
     const openClass = item.open ? " open" : "";
@@ -218,6 +251,10 @@ function renderCounts() {
     document.getElementById("countVscode").textContent = state.incidents.vscode.filter(i => !i.resolved).length;
     document.getElementById("countVercel").textContent = state.incidents.vercel.filter(i => !i.resolved).length;
 }
+
+/* ---------------------------------------------------------------------
+   Incoming data / polling
+   --------------------------------------------------------------------- */
 
 function normalizeIncoming(raw) {
     const arr = Array.isArray(raw) ? raw : [raw];
@@ -325,6 +362,10 @@ function stopPolling() {
     updateConnectionStatus(false);
 }
 
+/* ---------------------------------------------------------------------
+   Event wiring
+   --------------------------------------------------------------------- */
+
 function wireTabs() {
     document.querySelectorAll(".tab").forEach(tab => {
         tab.addEventListener("click", () => {
@@ -398,6 +439,10 @@ function wireFeedActions() {
     });
 }
 
+/* ---------------------------------------------------------------------
+   Init
+   --------------------------------------------------------------------- */
+
 async function init() {
     wireAuth();
     wireLogout();
@@ -408,6 +453,8 @@ async function init() {
     renderFeed("vercel");
     renderCounts();
 
+    // Cookie-based session (backend uses cookieParser + JWT). Confirm
+    // against the backend on load rather than trusting a local flag.
     if (auth.isAuthenticated()) {
         try {
             const user = await api.getCurrentUser();
