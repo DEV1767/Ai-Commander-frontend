@@ -86,6 +86,8 @@ async function showApp() {
 
     const user = await api.getCurrentUser();
     applyUserToUI(user);
+
+       document.getElementById("vscodeUrl").value = `${config.getBaseUrl()}/api/commander/errors/vscode`;
 }
 
 function applyUserToUI(user) {
