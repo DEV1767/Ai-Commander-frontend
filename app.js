@@ -213,6 +213,13 @@ function cardHTML(item) {
       </div>
       <div class="err-body">
         ${item.description ? `<div class="err-block"><div class="err-block-label">Description</div><p>${escapeHtml(item.description)}</p></div>` : ""}
+        ${item.category === "command_error" ? `
+        <div class="err-block">
+          <div class="err-block-label">${item.has_fix ? "Suggested Fix" : "Fix"}</div>
+          <p>${item.has_fix
+                ? `<code>${escapeHtml(item.quick_fix)}</code>${item.quick_explanation ? " — " + escapeHtml(item.quick_explanation) : ""}`
+                : escapeHtml(item.quick_explanation || "Could not confidently determine a fix.")}</p>
+        </div>` : ""}
         ${item.explanation ? `<div class="err-block"><div class="err-block-label">Explanation</div><p>${escapeHtml(item.explanation)}</p></div>` : ""}
         ${item.prevention ? `<div class="err-block"><div class="err-block-label">Prevention</div><p>${escapeHtml(item.prevention)}</p></div>` : ""}
         <div class="err-block">
@@ -265,6 +272,7 @@ function ingest(source, rawList) {
         state.incidents[source].unshift({
             id: raw._id || (source + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7)),
             error: raw.error,
+            category: raw.category,
             description: raw.description,
             risk: raw.risk,
             logs: raw.logs,
@@ -272,6 +280,9 @@ function ingest(source, rawList) {
             tech_stack: raw.tech_stack,
             explanation: raw.explanation,
             prevention: raw.prevention,
+            quick_fix: raw.quick_fix,
+            quick_explanation: raw.quick_explanation,
+            has_fix: raw.has_fix,
             receivedAt: raw.createdAt ? new Date(raw.createdAt).getTime() : Date.now(),
             resolved: false,
             open: false
